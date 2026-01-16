@@ -149,15 +149,12 @@ class WanI2VGenerator(WanAPIBase):
             # Make API request
             print(f"Making API request to {api_url}")
             response = requests.post(api_url, headers=headers, json=payload)
-            print(f"Response status code: {response.status_code}")
-            if hasattr(response, 'text'):
-                print(f"Response text: {response.text[:500]}...")  # Print first 500 chars
             response.raise_for_status()
 
             # Parse response to get task_id
             result = response.json()
             # Print first 200 chars
-            print(f"API response received: {json.dumps(result, indent=2)[:200]}...")
+            print(f"API response received:\n{json.dumps(result, indent=2)[:200]}...")
 
             # Check if this is a task creation response
             if "output" in result and "task_id" in result["output"]:
@@ -271,7 +268,7 @@ class WanI2VGenerator(WanAPIBase):
                         else:
                             return_path = video_path  # Return full path
                         # Return both the file path and the video URL
-                        return (return_path, video_url)
+                        return (video_path, video_url)
                     else:
                         raise ValueError(f"Unexpected API response format: {result}")
 

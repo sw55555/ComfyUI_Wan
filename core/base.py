@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+import logging
 from PIL import Image
 import numpy as np
 import torch
@@ -40,6 +41,8 @@ else:
         print("No .env file found, using default environment variable loading")
         load_dotenv()
 
+logging.getLogger('urllib3').setLevel(logging.ERROR)
+logging.getLogger('requests').setLevel(logging.ERROR)
 
 class WanAPIBase:
     """Base class for Wan API interactions"""
@@ -71,8 +74,12 @@ class WanAPIBase:
             self.api_key = self.api_key.strip().strip('"\'')
         if self.api_key_china:
             self.api_key_china = self.api_key_china.strip().strip('"\'')
-        print(
-            f"Initialized WanAPIBase with API keys: international={self.api_key[:8] if self.api_key else 'None'}...{self.api_key[-4:] if self.api_key else ''}, china={self.api_key_china[:8] if self.api_key_china else 'None'}...{self.api_key_china[-4:] if self.api_key_china else ''}")
+
+        def format_key(s: str | None):
+            return f"{s[:8] if s else 'None'}...{s[-4:] if s else ''}"
+
+        print(f"Initialized WanAPIBase with API keys: "
+              f"international={format_key(self.api_key)}, china={format_key(self.api_key_china)}")
 
     def check_api_key(self, region="international"):
         """Check if appropriate API key is set in environment variables"""
