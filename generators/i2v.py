@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import requests
 from PIL import Image
 import numpy as np
@@ -103,10 +104,14 @@ class WanI2VGenerator(WanAPIBase):
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING")  # Returns path to downloaded video file and video URL
-    RETURN_NAMES = ("video_file_path", "video_url")
+    RETURN_TYPES = ()
+    OUTPUT_NODE = True
     FUNCTION = "generate"
     CATEGORY = "Ru4ls/Wan"
+
+    @classmethod
+    def IS_CHANGED(s, images):
+        return time.time()
 
     def generate(self, model, image_url, prompt, region, negative_prompt="", resolution="720P",
                  prompt_extend=True, watermark=False, seed=0, output_dir="./videos"):
@@ -196,8 +201,6 @@ class WanI2VGenerator(WanAPIBase):
 
     def poll_task_result(self, task_id, output_dir="./videos", region="international"):
         """Poll for task result until completion and download video"""
-        import time
-
         # Get the appropriate API endpoints based on region
         endpoints = self.get_api_endpoints(region)
         query_url = endpoints["get"].format(task_id=task_id)
@@ -268,7 +271,8 @@ class WanI2VGenerator(WanAPIBase):
                         else:
                             return_path = video_path  # Return full path
                         # Return both the file path and the video URL
-                        return (video_path, video_url)
+                        # return return_path, video_url
+                        return {}
                     else:
                         raise ValueError(f"Unexpected API response format: {result}")
 
