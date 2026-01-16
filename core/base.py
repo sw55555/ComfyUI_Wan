@@ -40,9 +40,10 @@ else:
         print("No .env file found, using default environment variable loading")
         load_dotenv()
 
+
 class WanAPIBase:
     """Base class for Wan API interactions"""
-    
+
     # API endpoints for different regions
     ENDPOINTS = {
         "international": {
@@ -60,7 +61,7 @@ class WanAPIBase:
             "get": "https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}"
         }
     }
-    
+
     def __init__(self):
         # Load API keys for different regions
         self.api_key = os.getenv('DASHSCOPE_API_KEY')
@@ -70,8 +71,9 @@ class WanAPIBase:
             self.api_key = self.api_key.strip().strip('"\'')
         if self.api_key_china:
             self.api_key_china = self.api_key_china.strip().strip('"\'')
-        print(f"Initialized WanAPIBase with API keys: international={self.api_key[:8] if self.api_key else 'None'}...{self.api_key[-4:] if self.api_key else ''}, china={self.api_key_china[:8] if self.api_key_china else 'None'}...{self.api_key_china[-4:] if self.api_key_china else ''}")
-    
+        print(
+            f"Initialized WanAPIBase with API keys: international={self.api_key[:8] if self.api_key else 'None'}...{self.api_key[-4:] if self.api_key else ''}, china={self.api_key_china[:8] if self.api_key_china else 'None'}...{self.api_key_china[-4:] if self.api_key_china else ''}")
+
     def check_api_key(self, region="international"):
         """Check if appropriate API key is set in environment variables"""
         if region == "mainland_china" and self.api_key_china:
@@ -81,11 +83,11 @@ class WanAPIBase:
         else:
             raise ValueError("DASHSCOPE_API_KEY environment variable not set. "
                              "Please set it before using this node.")
-    
+
     def get_api_endpoints(self, region="international"):
         """Get the appropriate API endpoints based on region"""
         return self.ENDPOINTS.get(region, self.ENDPOINTS["international"])
-    
+
     def prepare_images(self, images):
         """Convert images to base64 strings for API submission"""
         image_data = []
@@ -102,7 +104,7 @@ class WanAPIBase:
                     pil_image = Image.fromarray(image_np.squeeze())
                 else:
                     pil_image = image
-                
+
                 # Convert PIL image to base64
                 buffer = io.BytesIO()
                 pil_image.save(buffer, format="PNG")
