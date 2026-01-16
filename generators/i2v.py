@@ -141,7 +141,8 @@ class WanI2VGenerator(WanAPIBase):
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "X-DashScope-Async": "enable"  # Wan requires async processing
+            "X-DashScope-Async": "enable",  # Wan requires async processing
+            "X-DashScope-DataInspection": '{"input": "disable", "output": "disable"}'
         }
 
         try:
@@ -209,7 +210,7 @@ class WanI2VGenerator(WanAPIBase):
 
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         max_attempts = 60  # Maximum polling attempts (may take longer for video)
