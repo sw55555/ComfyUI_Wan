@@ -44,6 +44,7 @@ else:
 logging.getLogger('urllib3').setLevel(logging.ERROR)
 logging.getLogger('requests').setLevel(logging.ERROR)
 
+
 class WanAPIBase:
     """Base class for Wan API interactions"""
 
@@ -53,6 +54,7 @@ class WanAPIBase:
             "video_post": "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis",
             "ii2v_post": "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/image2video/video-synthesis",
             "t2i_post": "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis",
+            "t2i_post_multi_model": "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation",
             "i2i_post": "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis",
             "get": "https://dashscope-intl.aliyuncs.com/api/v1/tasks/{task_id}"
         },

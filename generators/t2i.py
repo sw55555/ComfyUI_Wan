@@ -25,6 +25,8 @@ class WanT2IGenerator(WanAPIBase):
 
     # Define available Wan models
     MODEL_OPTIONS = [
+        "z-image-turbo",
+        "qwen-image-max",
         "wan2.6-t2i",  # Standard Edition
         "wan2.5-t2i-preview",  # Preview Edition
         "wan2.2-t2i-flash",  # Speed Edition
@@ -53,6 +55,8 @@ class WanT2IGenerator(WanAPIBase):
         "international",
         "mainland_china"
     ]
+
+    MULTI_MODELS = ("z-image-turbo", "qwen-image-max", "wan2.6-t2i")
 
     def __init__(self):
         super().__init__()
@@ -106,7 +110,7 @@ class WanT2IGenerator(WanAPIBase):
 
         # Get the appropriate API endpoints based on region
         endpoints = self.get_api_endpoints(region)
-        api_url = endpoints["t2i_post"]
+        api_url = endpoints["t2i_post" if model not in self.MULTI_MODELS else "t2i_post_multi_model"]
 
         # Set the selected model
         self.model = model
@@ -141,12 +145,13 @@ class WanT2IGenerator(WanAPIBase):
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "X-DashScope-Async": "enable"  # Wan requires async processing
+            "X-DashScope-Async": "enable",  # Wan requires async processing
+            "X-DashScope-DataInspection": '{"input": "disable", "output": "disable"}'
         }
 
         # Debug: Print request details
-        print(
-            f"Request headers: {{'Authorization': 'Bearer {api_key[:8]}...', 'Content-Type': 'application/json', 'X-DashScope-Async': 'enable'}}")
+        debug_headers = {**headers, 'Authorization': 'Bearer {api_key[:8]}...'}
+        print(f"Request headers: {debug_headers}")
         print(f"Request payload model: {payload['model']}")
         print(f"Request payload prompt: {payload['input']['prompt'][:100]}...")
         print(f"Request payload size: {payload['parameters']['size']}")
