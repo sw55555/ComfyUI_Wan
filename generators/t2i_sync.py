@@ -1,36 +1,23 @@
-import os
-import json
-import requests
-from PIL import Image
-import numpy as np
-import torch
 import io
-import base64
-from dotenv import load_dotenv
-import sys
-import pathlib
+import json
+
+import numpy as np
+import requests
+import torch
+from PIL import Image
 
 # Import the base class
-from ..core.base import WanAPIBase, COMFYUI_AVAILABLE
-
-# Try to import folder_paths if available
-try:
-    import folder_paths
-except ImportError:
-    pass
+from ..core.base import WanAPIBase
 
 
-class WanT2IGenerator(WanAPIBase):
-    """Node for text-to-image generation using Wan model"""
+class WanT2ISyncGenerator(WanAPIBase):
+    """Node for text-to-image synchronous generation using Wan model"""
 
     # Define available Wan models
     MODEL_OPTIONS = [
-        "wan2.5-t2i-preview",  # Preview Edition
-        "wan2.2-t2i-flash",  # Speed Edition
-        "wan2.2-t2i-plus",    # Professional Edition
-        "wanx2.1-t2i-turbo"  # Turbo Edition
-        "wanx2.1-t2i-plus"    # Plus Edition
-        "wanx2.0-t2i-turbo"  # Turbo Edition
+        "z-image-turbo",
+        "qwen-image-max",
+        "wan2.6-t2i",
     ]
 
     # Define allowed sizes for Wan models with descriptive names
@@ -43,8 +30,8 @@ class WanT2IGenerator(WanAPIBase):
         "720*1280",   # 9:16 portrait
         "1440*512",   # Wide landscape
         "512*1440"    # Tall portrait
-        "768*768"    # 1:1 square
-        "1440*1440"    # 1:1 square
+        "768*768"     # 1:1 square
+        "1440*1440"   # 1:1 square
     ]
 
     # Define region options
@@ -55,14 +42,14 @@ class WanT2IGenerator(WanAPIBase):
 
     def __init__(self):
         super().__init__()
-        self.model = "wan2.2-t2i-flash"  # Using Wan Speed Edition as default
+        self.model = "wan2.6-t2i"  # Using Wan Speed Edition as default
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "model": (cls.MODEL_OPTIONS, {
-                    "default": "wan2.2-t2i-flash"
+                    "default": "wan2.6-t2i"
                 }),
                 "prompt": ("STRING", {
                     "multiline": True,
@@ -105,7 +92,7 @@ class WanT2IGenerator(WanAPIBase):
 
         # Get the appropriate API endpoints based on region
         endpoints = self.get_api_endpoints(region)
-        api_url = endpoints["t2i_post"]
+        api_url = endpoints["t2i_post_sync"]
 
         # Set the selected model
         self.model = model
@@ -120,7 +107,12 @@ class WanT2IGenerator(WanAPIBase):
         payload = {
             "model": self.model,
             "input": {
-                "prompt": prompt
+                "messages": [{
+                    "role": "user",
+                    "content": [{
+                        "text": prompt
+                    }]
+                }]
             },
             "parameters": {
                 "size": size,
@@ -140,18 +132,13 @@ class WanT2IGenerator(WanAPIBase):
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "X-DashScope-Async": "enable",  # Wan requires async processing
             "X-DashScope-DataInspection": '{"input": "disable", "output": "disable"}'
         }
 
         # Debug: Print request details
-        debug_headers = {**headers, 'Authorization': 'Bearer {api_key[:8]}...'}
+        debug_headers = {**headers, "Authorization": f"Bearer {api_key[:8]}..."}
         print(f"Request headers: {debug_headers}")
-        print(f"Request payload model: {payload['model']}")
-        print(f"Request payload prompt: {payload['input']['prompt'][:100]}...")
-        print(f"Request payload size: {payload['parameters']['size']}")
-        print(f"Request payload prompt_extend: {payload['parameters']['prompt_extend']}")
-        print(f"Request payload watermark: {payload['parameters']['watermark']}")
+        print(f"Request payload:\n{json.dumps(payload, indent=2)}")
 
         try:
             # Make API request
@@ -162,22 +149,42 @@ class WanT2IGenerator(WanAPIBase):
                 print(f"Response text: {response.text[:500]}...")  # Print first 500 chars
             response.raise_for_status()
 
-            # Parse response to get task_id
             result = response.json()
             # Print first 200 chars
             print(f"API response received: {json.dumps(result, indent=2)[:200]}...")
 
             # Check if this is a task creation response
-            if "output" in result and "task_id" in result["output"]:
-                task_id = result["output"]["task_id"]
-                task_status = result["output"]["task_status"]
-                print(f"Task created with ID: {task_id}, status: {task_status}")
-
-                # Now we need to poll for the result
-                task_result = self.poll_task_result(task_id, region)
-                return task_result
-            else:
+            if "output" not in result or "choices" not in result["output"]:
                 raise ValueError(f"Unexpected API response format: {result}")
+
+            choices = result["output"]["choices"]
+            if (len(choices) == 0 or "message" not in choices[0]
+                or "content" not in choices[0]["message"]
+                or len(choices[0]["message"]["content"]) == 0
+                    or "image" not in choices[0]["message"]["content"][0]):
+                raise ValueError(f"Unexpected API response format: {result}")
+
+            task_id = result["request_id"]
+            task_status = choices[0]["finish_reason"]
+            print(f"Task created with ID: {task_id}, status: {task_status}")
+
+            if task_status != "stop":
+                raise ValueError(f"Unexpected task status: {task_status}")
+
+            # Task completed successfully
+            image_url = choices[0]["message"]["content"][0]["image"]
+
+            # Download the generated image
+            image_response = requests.get(image_url)
+            image_response.raise_for_status()
+
+            # Convert to tensor
+            image = Image.open(io.BytesIO(image_response.content))
+            image_tensor = torch.from_numpy(np.array(image).astype(np.float32) / 255.0)
+            image_tensor = image_tensor.unsqueeze(0)  # Add batch dimension
+
+            # Return both the image tensor and the image URL
+            return (image_tensor, image_url)
 
         except requests.exceptions.RequestException as e:
             # More detailed error handling
@@ -204,74 +211,3 @@ class WanT2IGenerator(WanAPIBase):
                 raise RuntimeError(f"API request failed: {str(e)}")
         except Exception as e:
             raise RuntimeError(f"Failed to process API response: {str(e)}")
-
-    def poll_task_result(self, task_id, region):
-        """Poll for task result until completion"""
-        import time
-
-        # Get the appropriate API endpoints based on region
-        endpoints = self.get_api_endpoints(region)
-        query_url = endpoints["get"].format(task_id=task_id)
-
-        # Check API key based on region
-        api_key = self.check_api_key(region)
-
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
-
-        max_attempts = 30  # Maximum polling attempts
-        attempt = 0
-
-        while attempt < max_attempts:
-            try:
-                print(f"Polling task {task_id}, attempt {attempt + 1}/{max_attempts}")
-                response = requests.get(query_url, headers=headers)
-                response.raise_for_status()
-
-                result = response.json()
-                task_status = result["output"]["task_status"]
-                print(f"Task status: {task_status}")
-
-                if task_status == "SUCCEEDED":
-                    # Task completed successfully
-                    results = result["output"]["results"]
-                    if len(results) > 0 and "url" in results[0]:
-                        image_url = results[0]["url"]
-                        # Download the generated image
-                        image_response = requests.get(image_url)
-                        image_response.raise_for_status()
-
-                        # Convert to tensor
-                        image = Image.open(io.BytesIO(image_response.content))
-                        image_tensor = torch.from_numpy(np.array(image).astype(np.float32) / 255.0)
-                        image_tensor = image_tensor.unsqueeze(0)  # Add batch dimension
-
-                        # Return both the image tensor and the image URL
-                        return (image_tensor, image_url)
-                    else:
-                        raise ValueError(f"Unexpected API response format: {result}")
-
-                elif task_status == "FAILED":
-                    # Task failed
-                    error_code = result["output"].get("code", "Unknown")
-                    error_message = result["output"].get("message", "Unknown error")
-                    raise RuntimeError(
-                        f"Task failed with code: {error_code}, message: {error_message}")
-
-                elif task_status in ["PENDING", "RUNNING"]:
-                    # Task still in progress, wait and retry
-                    time.sleep(5)  # Wait 5 seconds before retrying
-                    attempt += 1
-                    continue
-
-                else:
-                    raise ValueError(f"Unexpected task status: {task_status}")
-
-            except requests.exceptions.RequestException as e:
-                raise RuntimeError(f"Failed to query task status: {str(e)}")
-
-        # If we've reached here, we've exceeded max attempts
-        raise RuntimeError(
-            f"Task did not complete within the expected time ({max_attempts} attempts)")

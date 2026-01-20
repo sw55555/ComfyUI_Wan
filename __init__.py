@@ -4,6 +4,7 @@ for text-to-image, image-to-video, text-to-video, first-last-frame-tovideo, and 
 """
 
 from .generators.t2i import WanT2IGenerator
+from .generators.t2i_sync import WanT2ISyncGenerator
 from .generators.i2v import WanI2VGenerator
 from .generators.i2v_effect import WanI2VEffectGenerator
 from .generators.t2v import WanT2VGenerator
@@ -17,6 +18,7 @@ from .vace.video_outpainting import WanVACEVideoOutpainting
 
 NODE_CLASS_MAPPINGS = {
     "WanT2IGenerator": WanT2IGenerator,
+    "WanT2ISyncGenerator": WanT2ISyncGenerator,
     "WanI2VGenerator": WanI2VGenerator,
     "WanI2VEffectGenerator": WanI2VEffectGenerator,
     "WanT2VGenerator": WanT2VGenerator,
@@ -31,6 +33,7 @@ NODE_CLASS_MAPPINGS = {
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "WanT2IGenerator": "Wan Text-to-Image Generator",
+    "WanT2ISyncGenerator": "Wan Text-to-Image Sync Generator",
     "WanI2VGenerator": "Wan Image-to-Video Generator",
     "WanI2VEffectGenerator": "Wan Image-to-Video Effect Generator",
     "WanT2VGenerator": "Wan Text-to-Video Generator",
@@ -44,4 +47,3 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 }
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
-
